@@ -1,3 +1,29 @@
+module Html = struct
+  open Tyxml_html
+
+  let mk_head ~page_title () = head (title (txt page_title)) []
+
+  let mk_input ~sensitive ~prompt () =
+    html
+      (mk_head ~page_title:prompt ())
+      (body
+         [
+           form
+             [
+               h1 [ txt prompt ];
+               input
+                 ~a:
+                   [
+                     a_input_type (if sensitive then `Password else `Text);
+                     a_name "input";
+                     a_maxlength 1024;
+                   ]
+                 ();
+               input ~a:[ a_input_type `Submit ] ();
+             ];
+         ])
+end
+
 module Main
     (Random : Mirage_random.S)
     (Mclock : Mirage_clock.MCLOCK)
@@ -17,9 +43,9 @@ struct
   let http_of_gemini gemini_url =
     let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ] in
     function
-    | Razzia.Input _ as resp ->
-        (* TODO: input *)
-        Format.asprintf "%a" Razzia.pp_response resp
+    | Razzia.Input { prompt; sensitive } ->
+        Html.mk_input ~sensitive ~prompt ()
+        |> Format.asprintf "%a" (Tyxml_html.pp ())
         |> Dream.response ~headers:default_headers
     | Success { body; encoding; mime } ->
         let headers =
@@ -34,7 +60,7 @@ struct
                     (Option.value encoding ~default:"utf-8") );
               ]
         in
-        Dream.response ~status:`OK ~headers body
+        Dream.response ~headers body
     | Redirect (status, loc) ->
         let base =
           Uri.make ~scheme:"https" ~host:(Key_gen.default_host ())
@@ -45,6 +71,8 @@ struct
         let location =
           "gemini/" ^ Option.get (Uri.host gemini_url) ^ Uri.path resolved
           |> Uri.with_path resolved (* Loc: https://hostname/gemini/host/path *)
+          |> Fun.flip Uri.with_port (Some 8080)
+          (* REMOVE THIS *)
         in
         let status =
           match status with
@@ -85,6 +113,9 @@ struct
 
   (* TODO: handle error *)
   let proxy stack url =
+    let url =
+      if Uri.path url = String.empty then Uri.with_path url "/" else url
+    in
     match Razzia.make_request url with
     | Ok request -> (
         Razzia_io.get stack request >|= function
@@ -120,11 +151,12 @@ struct
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
+      (* TODO: Handle more than root *)
       Dream.get "/gemini" (homepage stack default_host);
       (* TODO: handle empty path *)
       Dream.get "/gemini/**" (gemini_proxy stack);
       Dream.get "/:path" (default_proxy stack default_host);
     ]
     |> Dream.router |> Dream.logger
-    |> Dream.http ~port:(Key_gen.port ()) (Stack.tcp stack)
+    |> Dream.https ~port:(Key_gen.port ()) (Stack.tcp stack)
 end

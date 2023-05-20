@@ -24,7 +24,7 @@ let main =
         package "razzia" ~pin:"git+https://github.com/Psi-Prod/Razzia.git#dev";
         package "razzia-mirage"
           ~pin:"git+https://github.com/Psi-Prod/Razzia.git#dev";
-        package "fpath";
+        package "tyxml";
       ]
     "Unikernel.Main"
     (random @-> mclock @-> pclock @-> time @-> stackv4v6 @-> job)
