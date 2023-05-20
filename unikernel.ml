@@ -14,7 +14,7 @@ struct
 
   let i'm_a_teapot = Dream.int_to_status 418
 
-  let http_of_gemini =
+  let http_of_gemini gemini_url =
     let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ] in
     function
     | Razzia.Input _ as resp ->
@@ -35,15 +35,25 @@ struct
               ]
         in
         Dream.response ~status:`OK ~headers body
-    | Redirect (s, location) ->
-        (* TODO: redirection *)
-        let _status =
-          match s with
+    | Redirect (status, loc) ->
+        let base =
+          Uri.make ~scheme:"https" ~host:(Key_gen.default_host ())
+            () (* https://hostname *)
+        in
+        let resolved = Uri.resolve "https" base (Uri.of_string loc) in
+        (* https://hostname/loc if [loc] relative, [loc] else *)
+        let location =
+          "gemini/" ^ Option.get (Uri.host gemini_url) ^ Uri.path resolved
+          |> Uri.with_path resolved (* Loc: https://hostname/gemini/host/path *)
+        in
+        let status =
+          match status with
           | `Temp -> `Temporary_Redirect
           | `Perm -> `Permanent_Redirect
         in
-        Printf.sprintf "Goto %S" location
-        |> Dream.response ~headers:default_headers
+        Dream.response ~status
+          ~headers:[ ("Location", Uri.to_string location) ]
+          ""
     | TempFailure (s, meta) ->
         (* TODO: temp failure *)
         let _status =
@@ -69,19 +79,21 @@ struct
         Printf.sprintf "Perm failure: %S" meta
         |> Dream.response ~headers:default_headers
     | ClientCertReq (_, meta) ->
+        (* TODO: client cert required *)
         Printf.sprintf "Client cert required: %S" meta
-        |> Dream.response ~code:418
+        |> Dream.response ~status:i'm_a_teapot
 
   (* TODO: handle error *)
   let proxy stack url =
     match Razzia.make_request url with
     | Ok request -> (
         Razzia_io.get stack request >|= function
-        | Ok resp -> http_of_gemini resp
+        | Ok resp -> http_of_gemini url resp
         | Error err -> Format.kasprintf failwith "Error: %a" Razzia.pp_err err)
     | Error err ->
         Format.kasprintf failwith "Error: %a" Razzia.pp_request_err err
 
+  (* TODO: better handling *)
   let get_query req =
     match Dream.query req "input" with
     | None -> []
@@ -91,29 +103,28 @@ struct
     Uri.make ~scheme:"gemini" ~host ~path:"/" ~query:(get_query req) ()
     |> proxy stack
 
-  (* TODO: handle port *)
+  (* TODO: handle port, if impossible with Dream do it with a get parameter *)
   let default_proxy stack host req =
     Uri.make ~scheme:"gemini" ~host ~path:(Dream.param req "path")
       ~query:(get_query req) ()
     |> proxy stack
 
-  let gemini_proxy stack req =
-    let[@warning "-8"] (host :: path) =
-      Dream.param req "path" |> String.split_on_char '/'
-    in
-    if path = String.empty then
-      Uri.make ~scheme:"gemini" ~host ~path:(String.concat "/" path)
-        ~query:(get_query req) ()
-      |> proxy stack
-    else failwith "Handle empty path"
+  let gemini_proxy stack =
+    Dream.static String.empty ~loader:(fun _ path req ->
+        let[@warning "-8"] (host :: path) = String.split_on_char '/' path in
+        Uri.make ~scheme:"gemini" ~host ~path:(String.concat "/" path)
+          ~query:(get_query req) ()
+        |> proxy stack)
 
   let start _ _ _ _ stack =
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
-      Dream.get "/gemini/:path" (gemini_proxy stack);
+      Dream.get "/gemini" (homepage stack default_host);
+      (* TODO: handle empty path *)
+      Dream.get "/gemini/**" (gemini_proxy stack);
       Dream.get "/:path" (default_proxy stack default_host);
     ]
     |> Dream.router |> Dream.logger
-    |> Dream.http ~port:8080 (Stack.tcp stack)
+    |> Dream.http ~port:(Key_gen.port ()) (Stack.tcp stack)
 end

@@ -1,5 +1,9 @@
 open Mirage
 
+let port =
+  let doc = Key.Arg.info ~doc:"HTTPS listen port." [ "port" ] in
+  Key.(create "port" Arg.(opt int 8080 doc))
+
 let default_page_title =
   let doc =
     Key.Arg.info ~doc:"The default page title" [ "default-page-title" ]
@@ -12,7 +16,7 @@ let default_host =
 
 let main =
   main
-    ~keys:[ Key.v default_page_title; Key.v default_host ]
+    ~keys:[ Key.v port; Key.v default_page_title; Key.v default_host ]
     ~packages:
       [
         package "dream-mirage"
