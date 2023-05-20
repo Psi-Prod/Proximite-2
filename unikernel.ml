@@ -23,16 +23,42 @@ module Html = struct
              ];
          ])
 
-  let mk_error kind info =
-    let label =
-      match kind with
-      | `TempFailure -> "Temporary failure"
-      | `PermFailure -> "Permanent failure"
-      | `ClientCertReq -> "Client cert required !"
+  type err =
+    [ `TempFailure of string
+    | `PermFailure of string
+    | `ClientCertReq of string
+    | `Request of Razzia.request_err
+    | `Response of Razzia.err ]
+
+  let mk_error (err : err) =
+    let title, label =
+      match err with
+      | `TempFailure info -> ("Temporary failure", info)
+      | `PermFailure info -> ("Permanent failure", info)
+      | `ClientCertReq info -> ("Client cert required", info)
+      | `Request err -> (
+          ( "Gemini error",
+            match err with
+            | `AboveMaxSize -> "URL is longer than 1024 characters"
+            | `BeginWithBOM -> "URL begins with BOM"
+            | `DomainNameError _ -> "Unknown host"
+            | `MalformedUTF8 -> "URL contains malformed UTF-8"
+            | `EmptyURL | `MissingHost | `MissingScheme | `UserInfoNotAllowed ->
+                assert false (* Unreachable *) ))
+      | `Response (`Header err) -> (
+          ( "Server error",
+            match err with
+            | `InvalidCode c -> Printf.sprintf "Invalid status code %i" c
+            | `Malformed -> "Response header is malformed"
+            | `TooLong -> "Response header is longer than 1024 characters" ))
+      | `Response (`Host (`BadDomainName msg)) -> ("Bad domain name", msg)
+      | `Response (`Host (`InvalidHostname msg)) -> ("Invalid hostname", msg)
+      | `Response (`Host (`UnknownHost msg)) -> ("Unknown host", msg)
+      | `Response `NetErr -> ("Connection error", "")
     in
     html
       (mk_head ~page_title:"Error" ())
-      (body [ h1 [ txt label ]; p [ txt info ] ])
+      (body [ h1 [ txt title ]; p [ txt label ] ])
 end
 
 module Main
@@ -51,10 +77,9 @@ struct
 
   let i'm_a_teapot = Dream.int_to_status 418
   let string_of_html = Format.asprintf "%a" (Tyxml_html.pp ())
+  let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ]
 
-  let http_of_gemini gemini_url =
-    let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ] in
-    function
+  let http_of_gemini gemini_url = function
     | Razzia.Input { prompt; sensitive } ->
         Html.mk_input ~sensitive ~prompt ()
         |> string_of_html
@@ -103,8 +128,7 @@ struct
           | `ProxyError -> `Bad_Gateway
           | `SlowDown -> `Too_Many_Requests
         in
-        Html.mk_error `TempFailure info
-        |> string_of_html
+        `TempFailure info |> Html.mk_error |> string_of_html
         |> Dream.response ~status ~headers:default_headers
     | PermFailure (status, info) ->
         let status =
@@ -115,15 +139,12 @@ struct
           | `ProxyRequestRefused -> i'm_a_teapot
           | `BadRequest -> `Bad_Request
         in
-        Html.mk_error `PermFailure info
-        |> string_of_html
+        `PermFailure info |> Html.mk_error |> string_of_html
         |> Dream.response ~status ~headers:default_headers
     | ClientCertReq (_, info) ->
-        Html.mk_error `ClientCertReq info
-        |> string_of_html
+        `ClientCertReq info |> Html.mk_error |> string_of_html
         |> Dream.response ~status:i'm_a_teapot
 
-  (* TODO: handle error *)
   let proxy stack url =
     let url =
       if Uri.path url = String.empty then Uri.with_path url "/" else url
@@ -132,9 +153,12 @@ struct
     | Ok request -> (
         Razzia_io.get stack request >|= function
         | Ok resp -> http_of_gemini url resp
-        | Error err -> Format.kasprintf failwith "Error: %a" Razzia.pp_err err)
+        | Error err ->
+            `Response err |> Html.mk_error |> string_of_html
+            |> Dream.response ~headers:default_headers)
     | Error err ->
-        Format.kasprintf failwith "Error: %a" Razzia.pp_request_err err
+        `Request err |> Html.mk_error |> string_of_html
+        |> Dream.respond ~headers:default_headers
 
   (* TODO: better handling *)
   let get_query req =
@@ -159,6 +183,8 @@ struct
           ~query:(get_query req) ()
         |> proxy stack)
 
+  (* TODO: static file serving (CSS) *)
+  (* TODO: Fetch TLS certs from git repo *)
   let start _ _ _ _ stack =
     let default_host = Key_gen.default_host () in
     [
