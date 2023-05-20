@@ -22,6 +22,17 @@ module Html = struct
                input ~a:[ a_input_type `Submit ] ();
              ];
          ])
+
+  let mk_error kind info =
+    let label =
+      match kind with
+      | `TempFailure -> "Temporary failure"
+      | `PermFailure -> "Permanent failure"
+      | `ClientCertReq -> "Client cert required !"
+    in
+    html
+      (mk_head ~page_title:"Error" ())
+      (body [ h1 [ txt label ]; p [ txt info ] ])
 end
 
 module Main
@@ -39,13 +50,14 @@ struct
   open Lwt.Infix
 
   let i'm_a_teapot = Dream.int_to_status 418
+  let string_of_html = Format.asprintf "%a" (Tyxml_html.pp ())
 
   let http_of_gemini gemini_url =
     let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ] in
     function
     | Razzia.Input { prompt; sensitive } ->
         Html.mk_input ~sensitive ~prompt ()
-        |> Format.asprintf "%a" (Tyxml_html.pp ())
+        |> string_of_html
         |> Dream.response ~headers:default_headers
     | Success { body; encoding; mime } ->
         let headers =
@@ -82,33 +94,33 @@ struct
         Dream.response ~status
           ~headers:[ ("Location", Uri.to_string location) ]
           ""
-    | TempFailure (s, meta) ->
-        (* TODO: temp failure *)
-        let _status =
-          match s with
+    | TempFailure (status, info) ->
+        let status =
+          match status with
           | `Msg -> i'm_a_teapot
           | `ServerUnavailable -> `Service_Unavailable
           | `CGIError -> `Bad_Gateway
           | `ProxyError -> `Bad_Gateway
           | `SlowDown -> `Too_Many_Requests
         in
-        Printf.sprintf "Temp failure: %S" meta
-        |> Dream.response ~headers:default_headers
-    | PermFailure (s, meta) ->
-        (* TODO: perm failure *)
-        let _status =
-          match s with
+        Html.mk_error `TempFailure info
+        |> string_of_html
+        |> Dream.response ~status ~headers:default_headers
+    | PermFailure (status, info) ->
+        let status =
+          match status with
           | `Msg -> i'm_a_teapot
           | `NotFound -> `Not_Found
           | `Gone -> `Gone
           | `ProxyRequestRefused -> i'm_a_teapot
           | `BadRequest -> `Bad_Request
         in
-        Printf.sprintf "Perm failure: %S" meta
-        |> Dream.response ~headers:default_headers
-    | ClientCertReq (_, meta) ->
-        (* TODO: client cert required *)
-        Printf.sprintf "Client cert required: %S" meta
+        Html.mk_error `PermFailure info
+        |> string_of_html
+        |> Dream.response ~status ~headers:default_headers
+    | ClientCertReq (_, info) ->
+        Html.mk_error `ClientCertReq info
+        |> string_of_html
         |> Dream.response ~status:i'm_a_teapot
 
   (* TODO: handle error *)
