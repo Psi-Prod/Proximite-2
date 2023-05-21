@@ -56,9 +56,10 @@ module Html = struct
       | `Response (`Host (`UnknownHost msg)) -> ("Unknown host", msg)
       | `Response `NetErr -> ("Connection error", "")
     in
-    html
-      (mk_head ~page_title:"Error" ())
-      (body [ h1 [ txt title ]; p [ txt label ] ])
+    let page_title =
+      Printf.sprintf "%s ‐ %s" (Key_gen.default_page_title ()) title
+    in
+    html (mk_head ~page_title ()) (body [ h1 [ txt title ]; p [ txt label ] ])
 end
 
 module Main
