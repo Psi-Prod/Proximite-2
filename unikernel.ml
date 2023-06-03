@@ -1,7 +1,10 @@
 module Html = struct
   open Tyxml_html
 
-  let mk_head ~page_title () = head (title (txt page_title)) []
+  let mk_head ~page_title () =
+    head
+      (title (txt page_title))
+      [ link ~rel:[ `Stylesheet ] ~href:"/static/styles.css" () ]
 
   let mk_input ~sensitive ~prompt () =
     html
@@ -63,17 +66,14 @@ module Html = struct
 end
 
 module Main
-    (Random : Mirage_random.S)
-    (Mclock : Mirage_clock.MCLOCK)
+    (Static : Mirage_kv.RO)
     (Pclock : Mirage_clock.PCLOCK)
+    (Stack : Tcpip.Stack.V4V6)
     (Time : Mirage_time.S)
-    (Stack : Tcpip.Stack.V4V6) =
+    (Dns : Dns_client_mirage.S with type Transport.stack = Stack.t) =
 struct
   module Dream = Dream__mirage.Mirage.Make (Pclock) (Time) (Stack)
-
-  module Razzia_io =
-    Razzia_mirage.Make (Random) (Time) (Mclock) (Pclock) (Stack)
-
+  module Razzia_io = Razzia_mirage.Make (Pclock) (Stack) (Dns)
   open Lwt.Infix
 
   let i'm_a_teapot = Dream.int_to_status 418
@@ -171,7 +171,7 @@ struct
     Uri.make ~scheme:"gemini" ~host ~path:"/" ~query:(get_query req) ()
     |> proxy stack
 
-  (* TODO: handle port, if impossible with Dream do it with a get parameter *)
+  (* TODO: Handle port with an URL parameter *)
   let default_proxy stack host req =
     Uri.make ~scheme:"gemini" ~host ~path:(Dream.param req "path")
       ~query:(get_query req) ()
@@ -184,9 +184,20 @@ struct
           ~query:(get_query req) ()
         |> proxy stack)
 
-  (* TODO: static file serving (CSS) *)
+  let serve_static fs =
+    Dream.static String.empty ~loader:(fun _ path _ ->
+        Static.get fs (Mirage_kv.Key.v path) >|= function
+        | Ok body ->
+            let mime =
+              match Magic_mime.lookup ~default:"" path with
+              | "" -> "application/octet-stream"
+              | m -> m
+            in
+            Dream.response ~headers:[ ("Content-Type", mime) ] body
+        | Error _ -> Dream.response ~status:`Not_Found "")
+
   (* TODO: Fetch TLS certs from git repo *)
-  let start _ _ _ _ stack =
+  let start static _ _ _ _ stack =
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
@@ -194,6 +205,7 @@ struct
       Dream.get "/gemini" (homepage stack default_host);
       (* TODO: handle empty path *)
       Dream.get "/gemini/**" (gemini_proxy stack);
+      Dream.get "/static/**" (serve_static static);
       Dream.get "/:path" (default_proxy stack default_host);
     ]
     |> Dream.router |> Dream.logger
