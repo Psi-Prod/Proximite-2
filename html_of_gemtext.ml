@@ -42,7 +42,17 @@ module Ctx = struct
     { title = None; body = []; items = []; paragraph = []; quote = [] }
 
   let[@inline] push_body elt ctx = { ctx with body = elt :: ctx.body }
-  let break_lines = List.rev
+
+  (* Operates on a reversed list *)
+  let break_lines l =
+    let rec loop acc = function
+      | [] -> acc
+      | [ _ ] when acc = [] -> l
+      | [ x ] -> x :: Tyxml_html.br () :: acc
+      | x :: xs when acc = [] -> loop (x :: acc) xs
+      | x :: xs -> loop (x :: Tyxml_html.br () :: acc) xs
+    in
+    loop [] l
 
   let render_items ctx =
     {
@@ -128,10 +138,8 @@ let inline_image url name =
              ~figcaption:(`Bottom (figcaption [ txt name ]))
              [ a ~a:[ a_href url ] [ img ~src:url ~alt:name () ] ])
   else
-    `Link
-      (match name with
-      | None -> a ~a:[ a_href url ] []
-      | Some name -> a ~a:[ a_href url ] [ txt name ])
+    let name = Option.value name ~default:url in
+    `Link (a ~a:[ a_href url ] [ txt name ])
 
 let hof ~url:current gemtext =
   let ctx =
