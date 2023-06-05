@@ -67,14 +67,12 @@ end
 
 module Main
     (Static : Mirage_kv.RO)
-    (Mclock : Mirage_clock.MCLOCK)
     (Pclock : Mirage_clock.PCLOCK)
-    (Random : Mirage_random.S)
     (Stack : Tcpip.Stack.V4V6)
+    (Dns : Dns_client_mirage.S with type Transport.stack = Stack.t)
     (Time : Mirage_time.S) =
 struct
   module Dream = Dream__mirage.Mirage.Make (Pclock) (Time) (Stack)
-  module Dns = Dns_client_mirage.Make (Random) (Time) (Mclock) (Pclock) (Stack)
   module Razzia_io = Razzia_mirage.Make (Pclock) (Stack) (Dns)
   open Lwt.Infix
 
@@ -203,13 +201,12 @@ struct
         | Error _ -> Dream.response ~status:`Not_Found "")
 
   (* TODO: Fetch TLS certs from git repo *)
-  (* TODO: Inline image *)
-  let start static _ _ _ stack _ =
+  let start static _ stack () _ =
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
       Dream.get "/gemini" (homepage stack default_host);
-      (* TODO: redirection about page *)
+      (* TODO: redirection on about page *)
       Dream.get "/gemini/**" (gemini_proxy stack);
       Dream.get "/static/**" (serve_static static);
       Dream.get "/:path" (default_proxy stack default_host);

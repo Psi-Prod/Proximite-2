@@ -27,16 +27,15 @@ let main =
         package "tyxml";
       ]
     "Unikernel.Main"
-    (kv_ro @-> mclock @-> pclock @-> random @-> stackv4v6 @-> time @-> job)
+    (kv_ro @-> pclock @-> stackv4v6 @-> resolver @-> time @-> job)
 
 let static_key = Key.(value @@ kv_ro ~group:"static" ())
 let static = generic_kv_ro ~key:static_key "static"
+let stack = generic_stackv4v6 default_network
 
 let () =
   register "proximite"
     [
-      main $ static $ default_monotonic_clock $ default_posix_clock
-      $ default_random
-      $ generic_stackv4v6 default_network
+      main $ static $ default_posix_clock $ stack $ resolver_dns stack
       $ default_time;
     ]
