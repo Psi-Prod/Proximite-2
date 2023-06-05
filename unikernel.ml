@@ -97,8 +97,7 @@ struct
                 let page_title, body =
                   Html_of_gemtext.hof ~url:gemini_url body
                 in
-                Html.mk_page ~page_title ~body ()
-                |> string_of_html )
+                Html.mk_page ~page_title ~body () |> string_of_html )
           | MimeType mime ->
               ( [
                   ( "Content-Type",
