@@ -22,7 +22,10 @@ let proxy_url ~current url =
                |> Mirage_kv.Key.to_string
              in
              "/gemini/" ^ current_host ^ Filename.concat path (Uri.path url)
-            else "/gemini/" ^ current_host ^ Uri.path url))
+            else
+              let path = match Uri.path url with "/" -> "" | p -> p in
+              (* Dream treats differently "/gemini/host/" and "/gemini/host" *)
+              "/gemini/" ^ current_host ^ path))
   | Some _ -> url
 
 type ctx = {
@@ -88,6 +91,7 @@ module Ctx = struct
     helper ctx ~body:(push_body elt) ~items:(push render_items)
       ~paragraph:(push render_paragraph) ~quote:(push render_blockquote)
 
+  (* Render everything *)
   let flush ctx =
     helper ctx ~body:Fun.id ~items:render_items ~paragraph:render_paragraph
       ~quote:render_blockquote

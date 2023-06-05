@@ -203,7 +203,6 @@ struct
         | Error _ -> Dream.response ~status:`Not_Found "")
 
   (* TODO: Fetch TLS certs from git repo *)
-  (* TODO: Inline image *)
   let start static _ _ _ stack _ =
     let default_host = Key_gen.default_host () in
     [
