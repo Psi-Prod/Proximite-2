@@ -14,14 +14,27 @@ let default_host =
   let doc = Key.Arg.info ~doc:"The default host proxied" [ "default-host" ] in
   Key.(create "default-host" Arg.(required string doc))
 
-let about_page =
-  let doc = Key.Arg.info ~doc:"URL of about page" [ "about-page" ] in
-  Key.(create "about-page" Arg.(required string doc))
+let about_url =
+  let doc = Key.Arg.info ~doc:"URL of about page" [ "about-url" ] in
+  Key.(create "about-url" Arg.(required string doc))
+
+let random_banner_url =
+  let doc =
+    Key.Arg.info ~doc:"Gemini URL of random banner page"
+      [ "random-banner-url" ]
+  in
+  Key.(create "random-banner-url" Arg.(required string doc))
 
 let main =
   main
     ~keys:
-      [ Key.v port; Key.v service_name; Key.v default_host; Key.v about_page ]
+      [
+        Key.v port;
+        Key.v service_name;
+        Key.v default_host;
+        Key.v about_url;
+        Key.v random_banner_url;
+      ]
     ~packages:
       [
         package "dream-mirage"

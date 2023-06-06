@@ -164,7 +164,7 @@ struct
 
   let redirect_about _ =
     Dream.respond ~status:`Temporary_Redirect
-      ~headers:[ ("Location", Key_gen.about_page ()) ]
+      ~headers:[ ("Location", Key_gen.about_url ()) ]
       ""
 
   (* TODO: Improve <br /> adding algorithm *)
