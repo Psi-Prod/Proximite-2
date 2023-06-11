@@ -148,7 +148,7 @@ let is_image fname =
       ".webp";
     ]
 
-let is_audio fname = List.mem (Filename.extension fname) [ ".mp3"; ".oggs" ]
+let is_audio fname = List.mem (Filename.extension fname) [ ".mp3"; ".ogg" ]
 
 (* Inline image and audio. *)
 let handle_link url name =
@@ -160,7 +160,6 @@ let handle_link url name =
     | Some name ->
         `Figure
           (figure
-             ~a:[ a_class [ "img-fig" ] ]
              ~figcaption:(`Bottom (figcaption [ txt name ]))
              [ a ~a:attr [ img ~src:url ~alt:name () ] ])
   else if is_audio url then
