@@ -180,8 +180,6 @@ let handle_link url name =
 let hof ~url:current gemtext =
   let ctx =
     Razzia.Gemtext.of_string gemtext
-    |> List.rev
-    (* TODO: Fix parsing reverse order in Razzia Gemtext parsing *)
     |> List.fold_left
          (fun acc ->
            let open Tyxml_html in
