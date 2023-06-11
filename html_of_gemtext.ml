@@ -135,23 +135,48 @@ let id_of_string =
 
 let is_image fname =
   List.mem (Filename.extension fname)
-    [ ".gif"; ".jpg"; ".jpeg"; ".png"; ".webp" ]
+    [
+      ".apng";
+      ".avif";
+      ".gif";
+      ".jpg";
+      ".jpeg";
+      ".jpe";
+      ".jif";
+      ".jfif";
+      ".png";
+      ".webp";
+    ]
 
-let inline_image url name =
+let is_audio fname = List.mem (Filename.extension fname) [ ".mp3"; ".oggs" ]
+
+(* Inline image and audio. *)
+let handle_link url name =
   let open Tyxml_html in
   if is_image url then
     let attr = [ a_href url; a_target "_blank" ] in
     match name with
-    | None -> `Link (a ~a:attr [ img ~src:url ~alt:"" () ])
+    | None -> `Inline (a ~a:attr [ img ~src:url ~alt:"" () ])
     | Some name ->
         `Figure
           (figure
              ~a:[ a_class [ "img-fig" ] ]
              ~figcaption:(`Bottom (figcaption [ txt name ]))
              [ a ~a:attr [ img ~src:url ~alt:name () ] ])
+  else if is_audio url then
+    let audio =
+      audio ~src:url
+        ~a:[ a_controls (); a_preload `Metadata ]
+        [ a ~a:[ a_href url ] [ txt "Download audio" ] ]
+    in
+    match name with
+    | None -> `Inline audio
+    | Some name ->
+        `Figure
+          (figure ~figcaption:(`Bottom (figcaption [ txt name ])) [ audio ])
   else
     let name = Option.value name ~default:url in
-    `Link (a ~a:[ a_href url ] [ txt name ])
+    `Inline (a ~a:[ a_href url ] [ txt name ])
 
 let hof ~url:current gemtext =
   let ctx =
@@ -168,9 +193,9 @@ let hof ~url:current gemtext =
                let proxied_url =
                  proxy_url ~current (Uri.of_string url) |> Uri.to_string
                in
-               match inline_image proxied_url name with
-               | `Figure i -> Ctx.add acc i
-               | `Link l -> Ctx.add_to_paragraph acc l)
+               match handle_link proxied_url name with
+               | `Inline l -> Ctx.add_to_paragraph acc l
+               | `Figure i -> Ctx.add acc i)
            | Preformat { alt; text } ->
                let pre = pre [ txt text ] in
                Option.fold alt ~none:pre ~some:(fun caption ->
