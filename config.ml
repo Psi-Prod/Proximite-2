@@ -14,9 +14,26 @@ let default_host =
   let doc = Key.Arg.info ~doc:"The default host proxied" [ "default-host" ] in
   Key.(create "default-host" Arg.(required string doc))
 
+let about_url =
+  let doc = Key.Arg.info ~doc:"URL of about page" [ "about-url" ] in
+  Key.(create "about-url" Arg.(required string doc))
+
+let random_banner_url =
+  let doc =
+    Key.Arg.info ~doc:"Gemini URL of random banner page" [ "random-banner-url" ]
+  in
+  Key.(create "random-banner-url" Arg.(required string doc))
+
 let main =
   main
-    ~keys:[ Key.v port; Key.v service_name; Key.v default_host ]
+    ~keys:
+      [
+        Key.v port;
+        Key.v service_name;
+        Key.v default_host;
+        Key.v about_url;
+        Key.v random_banner_url;
+      ]
     ~packages:
       [
         package "dream-mirage"
@@ -27,7 +44,8 @@ let main =
         package "tyxml";
       ]
     "Unikernel.Main"
-    (kv_ro @-> pclock @-> stackv4v6 @-> resolver @-> time @-> job)
+    (kv_ro @-> mclock @-> pclock @-> random @-> stackv4v6 @-> time
+   @-> dns_client @-> job)
 
 let static_key = Key.(value @@ kv_ro ~group:"static" ())
 let static = generic_kv_ro ~key:static_key "static"
@@ -36,6 +54,6 @@ let stack = generic_stackv4v6 default_network
 let () =
   register "proximite"
     [
-      main $ static $ default_posix_clock $ stack $ resolver_dns stack
-      $ default_time;
+      main $ static $ default_monotonic_clock $ default_posix_clock
+      $ default_random $ stack $ default_time $ generic_dns_client stack;
     ]

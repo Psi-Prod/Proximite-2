@@ -1,0 +1,140 @@
+body {
+    background-image: url("/static/tile.jpg");
+}
+
+main {
+    width: 60%;
+    margin: 0 auto;
+    background-color: #FFF;
+    padding: 1.25rem 1.25rem 0 1.25rem;
+    border-style: outset;
+}
+
+header {
+    border-style: outset;
+    vertical-align: middle;
+    font-family: Courier, monospace;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+}
+
+nav {
+    border-style: inset;
+    flex-grow: 1;
+    padding: 2px;
+    overflow: hidden;
+}
+
+nav>#address {
+    vertical-align: sub;
+    height: 100%;
+}
+
+#query {
+    color: #AAA;
+}
+
+article {
+    margin-bottom: 1rem;
+}
+
+form {
+    border-style: outset;
+    padding: 3rem;
+    width: auto;
+    text-align: center;
+}
+
+form>h1 {
+    margin-top: 0;
+}
+
+#input-field {
+    border: 2px dashed #AAA;
+    margin: 10px;
+    width: 60%;
+}
+
+#input-submit {
+    border: 2px outset black;
+}
+
+a {
+    word-wrap: break-word;
+}
+
+pre {
+    overflow-x: auto;
+    padding: 2px;
+    border: 1px solid #888;
+}
+
+figure {
+    margin: 0 auto 1.5em;
+}
+
+figure>pre {
+    margin-top: 0;
+}
+
+figure>figcaption {
+    color: #AAA;
+    font-style: italic;
+    color: #555;
+}
+
+blockquote {
+    margin-left: 0;
+    border-left: 3px solid #CCC;
+    padding: 0 10px;
+    color: #333;
+    font-style: italic;
+    word-break: break-word;
+}
+
+p>a>img {
+    margin-top: 1rem;
+}
+
+img {
+    max-width: 500px;
+    border: 3px solid #888;
+}
+
+audio {
+    border: 3px solid #888;
+}
+
+hr {
+    border-color: #B2B2B2;
+}
+
+footer>details>table {
+    padding-left: 1rem;
+}
+
+footer td {
+    padding: 0.2em;
+}
+
+details:not([open]) summary,
+details:not([open]) summary a {
+    color: #4c4c4c;
+    ;
+}
+
+@media screen and (max-width: 1000px) {
+    body {
+        margin-top: 5%;
+    }
+
+    main {
+        width: 85%;
+    }
+
+    header {
+        flex-direction: column;
+    }
+}

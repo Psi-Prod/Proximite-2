@@ -1,30 +1,3 @@
-let proxy_url ~current url =
-  match Uri.scheme url with
-  | Some "gemini" | None -> (
-      let proxied = Uri.with_scheme url None |> Fun.flip Uri.with_host None in
-      let proxied =
-        match Uri.query url with
-        | [] -> proxied
-        | (input, _) :: _ -> Uri.with_query' proxied [ ("input", input) ]
-      in
-      match Uri.host url with
-      | Some host ->
-          if host = Key_gen.default_host () then proxied
-          else
-            let new_path = "/gemini/" ^ host ^ Uri.path url in
-            Uri.with_path proxied new_path
-      | None ->
-          let current_host = Option.get (Uri.host current) in
-          Uri.with_path proxied
-            (if Filename.is_relative (Uri.path url) then
-             let path =
-               Uri.path current |> Mirage_kv.Key.v |> Mirage_kv.Key.parent
-               |> Mirage_kv.Key.to_string
-             in
-             "/gemini/" ^ current_host ^ Filename.concat path (Uri.path url)
-            else "/gemini/" ^ current_host ^ Uri.path url))
-  | Some _ -> url
-
 type ctx = {
   title : string option (* The first H1 heading, if found *);
   body : Html_types.flow5 elts;
@@ -88,6 +61,7 @@ module Ctx = struct
     helper ctx ~body:(push_body elt) ~items:(push render_items)
       ~paragraph:(push render_paragraph) ~quote:(push render_blockquote)
 
+  (* Render everything *)
   let flush ctx =
     helper ctx ~body:Fun.id ~items:render_items ~paragraph:render_paragraph
       ~quote:render_blockquote
@@ -117,6 +91,42 @@ module Ctx = struct
     | _, _ -> assert false
 end
 
+let proxy_url ~current url =
+  (* Dream treats /foo and /foo/ differently *)
+  let url = match Uri.path url with "/" -> Uri.with_path url "" | _ -> url in
+  match Uri.scheme url with
+  | Some "gemini" | None -> (
+      let proxied =
+        match Uri.port url with
+        | None -> Uri.with_scheme url None |> Fun.flip Uri.with_host None
+        | Some _ ->
+            (* Don't reset host and scheme if port component is present *)
+            Uri.with_scheme url (Some "https")
+            |> Fun.flip Uri.with_host (Some (Key_gen.default_host ()))
+      in
+      let proxied =
+        match Uri.query url with
+        | [] -> proxied
+        | (input, _) :: _ -> Uri.with_query' proxied [ ("input", input) ]
+      in
+      match Uri.host url with
+      | Some host ->
+          if host = Key_gen.default_host () then proxied
+          else
+            let new_path = "/gemini/" ^ host ^ Uri.path url in
+            Uri.with_path proxied new_path
+      | None ->
+          let current_host = Option.get (Uri.host current) in
+          Uri.with_path proxied
+            (if Filename.is_relative (Uri.path url) then
+             let path =
+               Uri.path current |> Mirage_kv.Key.v |> Mirage_kv.Key.parent
+               |> Mirage_kv.Key.to_string
+             in
+             "/gemini/" ^ current_host ^ Filename.concat path (Uri.path url)
+            else "/gemini/" ^ current_host ^ Uri.path url))
+  | Some _ -> url
+
 let set_title ctx t =
   match ctx.title with None -> { ctx with title = Some t } | Some _ -> ctx
 
@@ -125,27 +135,51 @@ let id_of_string =
 
 let is_image fname =
   List.mem (Filename.extension fname)
-    [ ".gif"; ".jpg"; ".jpeg"; ".png"; ".webp" ]
+    [
+      ".apng";
+      ".avif";
+      ".gif";
+      ".jpg";
+      ".jpeg";
+      ".jpe";
+      ".jif";
+      ".jfif";
+      ".png";
+      ".webp";
+    ]
 
-let inline_image url name =
+let is_audio fname = List.mem (Filename.extension fname) [ ".mp3"; ".ogg" ]
+
+(* Inline image and audio. *)
+let handle_link url name =
   let open Tyxml_html in
   if is_image url then
+    let attr = [ a_href url; a_target "_blank" ] in
     match name with
-    | None -> `Link (img ~src:url ~alt:"" ())
+    | None -> `Inline (a ~a:attr [ img ~src:url ~alt:"" () ])
     | Some name ->
         `Figure
           (figure
              ~figcaption:(`Bottom (figcaption [ txt name ]))
-             [ a ~a:[ a_href url ] [ img ~src:url ~alt:name () ] ])
+             [ a ~a:attr [ img ~src:url ~alt:name () ] ])
+  else if is_audio url then
+    let audio =
+      audio ~src:url
+        ~a:[ a_controls (); a_preload `Metadata ]
+        [ a ~a:[ a_href url ] [ txt "Download audio" ] ]
+    in
+    match name with
+    | None -> `Inline audio
+    | Some name ->
+        `Figure
+          (figure ~figcaption:(`Bottom (figcaption [ txt name ])) [ audio ])
   else
     let name = Option.value name ~default:url in
-    `Link (a ~a:[ a_href url ] [ txt name ])
+    `Inline (a ~a:[ a_href url ] [ txt name ])
 
 let hof ~url:current gemtext =
   let ctx =
     Razzia.Gemtext.of_string gemtext
-    |> List.rev
-    (* TODO: Fix parsing reverse order in Razzia Gemtext parsing *)
     |> List.fold_left
          (fun acc ->
            let open Tyxml_html in
@@ -156,9 +190,9 @@ let hof ~url:current gemtext =
                let proxied_url =
                  proxy_url ~current (Uri.of_string url) |> Uri.to_string
                in
-               match inline_image proxied_url name with
-               | `Figure i -> Ctx.add acc i
-               | `Link l -> Ctx.add_to_paragraph acc l)
+               match handle_link proxied_url name with
+               | `Inline l -> Ctx.add_to_paragraph acc l
+               | `Figure i -> Ctx.add acc i)
            | Preformat { alt; text } ->
                let pre = pre [ txt text ] in
                Option.fold alt ~none:pre ~some:(fun caption ->
