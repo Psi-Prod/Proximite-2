@@ -4,10 +4,10 @@ module Main
     (Pclock : Mirage_clock.PCLOCK)
     (Random : Mirage_random.S)
     (Stack : Tcpip.Stack.V4V6)
-    (Time : Mirage_time.S) =
+    (Time : Mirage_time.S)
+    (Dns : Dns_client_mirage.S with type Transport.stack = Stack.t) =
 struct
   module Dream = Dream__mirage.Mirage.Make (Pclock) (Time) (Stack)
-  module Dns = Dns_client_mirage.Make (Random) (Time) (Mclock) (Pclock) (Stack)
   module Razzia_io = Razzia_mirage.Make (Pclock) (Stack) (Dns)
   open Lwt.Infix
 
@@ -169,7 +169,7 @@ struct
 
   (* TODO: Improve <br /> adding algorithm *)
   (* TODO: Fetch TLS certs from git repo *)
-  let start static _ _ _ stack _ =
+  let start static _ _ _ stack _ _ =
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);

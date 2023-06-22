@@ -20,8 +20,7 @@ let about_url =
 
 let random_banner_url =
   let doc =
-    Key.Arg.info ~doc:"Gemini URL of random banner page"
-      [ "random-banner-url" ]
+    Key.Arg.info ~doc:"Gemini URL of random banner page" [ "random-banner-url" ]
   in
   Key.(create "random-banner-url" Arg.(required string doc))
 
@@ -45,16 +44,16 @@ let main =
         package "tyxml";
       ]
     "Unikernel.Main"
-    (kv_ro @-> mclock @-> pclock @-> random @-> stackv4v6 @-> time @-> job)
+    (kv_ro @-> mclock @-> pclock @-> random @-> stackv4v6 @-> time
+   @-> dns_client @-> job)
 
 let static_key = Key.(value @@ kv_ro ~group:"static" ())
 let static = generic_kv_ro ~key:static_key "static"
+let stack = generic_stackv4v6 default_network
 
 let () =
   register "proximite"
     [
       main $ static $ default_monotonic_clock $ default_posix_clock
-      $ default_random
-      $ generic_stackv4v6 default_network
-      $ default_time;
+      $ default_random $ stack $ default_time $ generic_dns_client stack;
     ]
