@@ -1,8 +1,6 @@
 module Main
     (Static : Mirage_kv.RO)
-    (Mclock : Mirage_clock.MCLOCK)
     (Pclock : Mirage_clock.PCLOCK)
-    (Random : Mirage_random.S)
     (Stack : Tcpip.Stack.V4V6)
     (Time : Mirage_time.S)
     (Dns : Dns_client_mirage.S with type Transport.stack = Stack.t) =
