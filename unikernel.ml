@@ -166,8 +166,7 @@ struct
       ""
 
   (* TODO: Improve <br /> adding algorithm *)
-  (* TODO: Fetch TLS certs from git repo *)
-  let start static _ _ _ stack _ _ =
+  let start static _ stack _ _ =
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
