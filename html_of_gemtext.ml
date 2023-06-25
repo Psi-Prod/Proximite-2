@@ -133,8 +133,10 @@ let set_title ctx t =
 let id_of_string =
   String.map (function ' ' -> '-' | c -> Char.lowercase_ascii c)
 
-let is_image fname =
-  List.mem (Filename.extension fname)
+let is_in_mimes mimes fname = List.mem (Filename.extension fname) mimes
+
+let is_image =
+  is_in_mimes
     [
       ".apng";
       ".avif";
@@ -148,11 +150,26 @@ let is_image fname =
       ".webp";
     ]
 
-let is_audio fname = List.mem (Filename.extension fname) [ ".mp3"; ".ogg" ]
+let is_audio = is_in_mimes [ ".mp3"; ".ogg" ]
+let is_video = is_in_mimes [ ".mp4"; ".webm" ]
 
 (* Inline image and audio. *)
 let handle_link url name =
   let open Tyxml_html in
+  let handle_dynamic typ =
+    let elt_fun, label =
+      match typ with `Audio -> (audio, "audio") | `Video -> (video, "video")
+    in
+    let elt =
+      elt_fun ~src:url
+        ~a:[ a_controls (); a_preload `Metadata ]
+        [ a ~a:[ a_href url ] [ txt ("Download " ^ label) ] ]
+    in
+    match name with
+    | None -> `Inline elt
+    | Some name ->
+        `Figure (figure ~figcaption:(`Bottom (figcaption [ txt name ])) [ elt ])
+  in
   if is_image url then
     let attr = [ a_href url; a_target "_blank" ] in
     match name with
@@ -162,20 +179,9 @@ let handle_link url name =
           (figure
              ~figcaption:(`Bottom (figcaption [ txt name ]))
              [ a ~a:attr [ img ~src:url ~alt:name () ] ])
-  else if is_audio url then
-    let audio =
-      audio ~src:url
-        ~a:[ a_controls (); a_preload `Metadata ]
-        [ a ~a:[ a_href url ] [ txt "Download audio" ] ]
-    in
-    match name with
-    | None -> `Inline audio
-    | Some name ->
-        `Figure
-          (figure ~figcaption:(`Bottom (figcaption [ txt name ])) [ audio ])
-  else
-    let name = Option.value name ~default:url in
-    `Inline (a ~a:[ a_href url ] [ txt name ])
+  else if is_audio url then handle_dynamic `Audio
+  else if is_video url then handle_dynamic `Video
+  else `Inline (a ~a:[ a_href url ] [ txt (Option.value name ~default:url) ])
 
 let hof ~url:current gemtext =
   let ctx =
