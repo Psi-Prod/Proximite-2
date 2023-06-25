@@ -109,6 +109,11 @@ audio {
     border: 3px solid #888;
 }
 
+video {
+    border: 3px solid #888;
+    max-width: 500px;
+}
+
 hr {
     border-color: #B2B2B2;
 }
