@@ -73,6 +73,8 @@ pre {
 
 figure {
     margin: 0 auto 1.5em;
+    display: table;
+    text-align: center;
 }
 
 figure>pre {
