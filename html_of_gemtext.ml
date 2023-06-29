@@ -117,14 +117,18 @@ let proxy_url ~current url =
             Uri.with_path proxied new_path
       | None ->
           let current_host = Option.get (Uri.host current) in
-          Uri.with_path proxied
-            (if Filename.is_relative (Uri.path url) then
-             let path =
-               Uri.path current |> Mirage_kv.Key.v |> Mirage_kv.Key.parent
-               |> Mirage_kv.Key.to_string
-             in
-             "/gemini/" ^ current_host ^ Filename.concat path (Uri.path url)
-            else "/gemini/" ^ current_host ^ Uri.path url))
+          if current_host = Key_gen.default_host () then proxied
+          else
+            let path =
+              if Filename.is_relative (Uri.path url) then
+                let path =
+                  Uri.path current |> Mirage_kv.Key.v |> Mirage_kv.Key.parent
+                  |> Mirage_kv.Key.to_string
+                in
+                Filename.concat path (Uri.path url)
+              else Uri.path url
+            in
+            "/gemini/" ^ current_host ^ path |> Uri.with_path proxied)
   | Some _ -> url
 
 let set_title ctx t =

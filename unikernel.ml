@@ -48,10 +48,16 @@ struct
         in
         let resolved = Uri.resolve "https" base (Uri.of_string loc) in
         (* https://hostname/loc if [loc] relative, [loc] else *)
+        let port =
+          Uri.query gemini_url
+          |> List.find_map (function
+               | "port", [ port ] when port <> "1965" -> int_of_string_opt port
+               | _ -> None)
+        in
         let location =
           "gemini/" ^ Option.get (Uri.host gemini_url) ^ Uri.path resolved
           |> Uri.with_path resolved (* Loc: https://hostname/gemini/host/path *)
-          |> Fun.flip Uri.with_port (Some (Key_gen.port ()))
+          |> Fun.flip Uri.with_port port
         in
         let status =
           match status with
@@ -129,7 +135,6 @@ struct
         match Dream.all_queries req with
         | (value, "") :: _ -> [ (value, []) ]
         | _ -> [])
-    | Some "" -> [ ("input", []) ]
     | Some value -> [ (value, []) ]
 
   let get_port req = Option.bind (Dream.query req "port") int_of_string_opt
@@ -139,10 +144,11 @@ struct
       ?port:(get_port req) ()
     |> proxy stack
 
-  let default_proxy stack host req =
-    Uri.make ~scheme:"gemini" ~host ~path:(Dream.param req "path")
-      ~query:(get_query req) ?port:(get_port req) ()
-    |> proxy stack
+  let default_proxy stack host =
+    Dream.static String.empty ~loader:(fun _ path req ->
+        Uri.make ~scheme:"gemini" ~host ~path ~query:(get_query req)
+          ?port:(get_port req) ()
+        |> proxy stack)
 
   let gemini_proxy stack =
     Dream.static String.empty ~loader:(fun _ path req ->
@@ -173,7 +179,7 @@ struct
       Dream.get "/gemini" redirect_about;
       Dream.get "/gemini/**" (gemini_proxy stack);
       Dream.get "/static/**" (serve_static static);
-      Dream.get "/:path" (default_proxy stack default_host);
+      Dream.get "/**" (default_proxy stack default_host);
     ]
     |> Dream.router |> Dream.logger
     |> Dream.https ~port:(Key_gen.port ()) (Stack.tcp stack)

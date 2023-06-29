@@ -27,8 +27,14 @@ let mk_header ~url () =
     ]
   in
   let host_url =
-    Uri.with_path url "/" |> Fun.flip Uri.with_query []
-    |> Html_of_gemtext.proxy_url ~current:url
+    let cleared =
+      Uri.with_scheme url (Some "https")
+      |> Fun.flip Uri.with_path "/" |> Fun.flip Uri.with_query []
+    in
+    match Uri.host url with
+    | None -> cleared
+    | Some h when Key_gen.default_host () = h -> cleared
+    | Some _ -> Html_of_gemtext.proxy_url ~current:url url
   in
   let host =
     [
