@@ -79,6 +79,7 @@ figure {
 
 figure>pre {
     margin-top: 0;
+    text-align: left;
 }
 
 figure>figcaption {
