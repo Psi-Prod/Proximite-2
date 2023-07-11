@@ -185,7 +185,11 @@ let handle_link url name =
              [ a ~a:attr [ img ~src:url ~alt:name () ] ])
   else if is_audio url then handle_dynamic `Audio
   else if is_video url then handle_dynamic `Video
-  else `Inline (a ~a:[ a_href url ] [ txt (Option.value name ~default:url) ])
+  else
+    `Inline
+      (a
+         ~a:[ a_href url ]
+         [ txt (Option.value name ~default:url |> Uri.pct_decode) ])
 
 let hof ~url:current gemtext =
   let ctx =
