@@ -77,6 +77,10 @@ figure {
     text-align: center;
 }
 
+figure.preformat figcaption {
+    text-align: left;
+}
+
 figure>pre {
     margin-top: 0;
     text-align: left;
@@ -132,7 +136,6 @@ footer td {
 details:not([open]) summary,
 details:not([open]) summary a {
     color: #4c4c4c;
-    ;
 }
 
 @media screen and (max-width: 1000px) {

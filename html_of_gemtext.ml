@@ -208,6 +208,7 @@ let hof ~url:current gemtext =
                Option.fold alt ~none:pre ~some:(fun caption ->
                    figure
                      ~figcaption:(`Top (figcaption [ txt caption ]))
+                     ~a:[ a_class [ "preformat" ] ]
                      [ pre ])
                |> Ctx.add acc
            | Heading (level, heading) ->
