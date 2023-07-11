@@ -109,7 +109,7 @@ p>a>img {
     margin-top: 1rem;
 }
 
-img video {
+img, video {
     max-width: 500px;
     border: 3px solid #888;
     display: block;
