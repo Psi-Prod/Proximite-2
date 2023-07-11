@@ -77,6 +77,10 @@ figure {
     text-align: center;
 }
 
+figure.preformat {
+    display: block;
+}
+
 figure.preformat figcaption {
     text-align: left;
 }
