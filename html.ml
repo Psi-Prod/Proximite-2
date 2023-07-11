@@ -116,14 +116,23 @@ type err =
   | `ClientCertReq of string
   | `Request of Razzia.request_err
   | `Response of Razzia.err
-  | `Timeout ]
+  | `Timeout
+  | `HTTP of Dream_pure.Status.status ]
 
 let mk_error ~gemini_url ~response (err : err) =
   let title, label =
     match err with
-    | `TempFailure info -> ("Temporary failure", info)
-    | `PermFailure info -> ("Permanent failure", info)
-    | `ClientCertReq info -> ("Client cert required", info)
+    | (`TempFailure meta | `PermFailure meta | `ClientCertReq meta) as err ->
+        let errname =
+          match err with
+          | `TempFailure _ -> "Temporary failure"
+          | `PermFailure _ -> "Permanent failure"
+          | `ClientCertReq _ -> "Client cert required"
+        in
+        ( Printf.sprintf "%i %s"
+            (Option.get response |> Razzia.status_code)
+            errname,
+          meta )
     | `Request err -> (
         ( "Gemini error",
           match err with
@@ -144,7 +153,13 @@ let mk_error ~gemini_url ~response (err : err) =
     | `Response (`Host (`UnknownHost msg)) -> ("Unknown host", msg)
     | `Response `NetErr -> ("Connection error", "")
     | `Timeout -> ("Timeout", "for 5s")
+    | `HTTP s ->
+        ( Dream_pure.(
+            Printf.sprintf "%i %s" (Status.status_to_int s)
+              (Status.status_to_string s)),
+          "" )
   in
+
   mk_page ~gemini_url ~response ~page_title:(fmt_page_title title)
     ~body:[ h1 [ txt title ]; p [ txt label ] ]
     ()

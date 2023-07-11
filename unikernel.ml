@@ -171,6 +171,22 @@ struct
       ~headers:[ ("Location", Key_gen.about_url ()) ]
       ""
 
+  let error_handler err =
+    Lwt.return
+    @@
+    match err with
+    | { Dream.condition = `Response resp; _ } ->
+        `HTTP (Dream.status resp)
+        |> Html.mk_error
+             ~gemini_url:
+               (Uri.make ~scheme:"gemini" ~host:(Key_gen.default_host ())
+                  ~path:"/" ())
+             ~response:None
+        |> string_of_html
+        |> Dream.response ~headers:default_headers
+        |> Option.some
+    | { response; _ } -> response
+
   (* TODO: Improve <br /> adding algorithm *)
   let start static _ stack _ _ =
     let default_host = Key_gen.default_host () in
@@ -182,5 +198,5 @@ struct
       Dream.get "/**" (default_proxy stack default_host);
     ]
     |> Dream.router |> Dream.logger
-    |> Dream.https ~port:(Key_gen.port ()) (Stack.tcp stack)
+    |> Dream.https ~error_handler ~port:(Key_gen.port ()) (Stack.tcp stack)
 end
