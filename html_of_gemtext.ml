@@ -92,8 +92,6 @@ module Ctx = struct
 end
 
 let proxy_url ~current url =
-  (* Dream treats /foo and /foo/ differently *)
-  let url = match Uri.path url with "/" -> Uri.with_path url "" | _ -> url in
   match Uri.scheme url with
   | Some "gemini" | None -> (
       let proxied =
@@ -126,7 +124,9 @@ let proxy_url ~current url =
                   |> Mirage_kv.Key.to_string
                 in
                 Filename.concat path (Uri.path url)
-              else Uri.path url
+              else
+                (* Dream treats /foo and /foo/ differently *)
+                match Uri.path url with "/" -> "" | p -> p
             in
             "/gemini/" ^ current_host ^ path |> Uri.with_path proxied)
   | Some _ -> url
