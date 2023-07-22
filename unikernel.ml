@@ -171,6 +171,11 @@ struct
       ~headers:[ ("Location", Key_gen.about_url ()) ]
       ""
 
+  let serve_robots_txt _ =
+    String.concat "\n"
+      [ "User-agent: *"; "Disallow: /gemini/"; "Crawl-delay: 5" ]
+    |> Dream.respond ~headers:[ ("Content-type", "text/plain") ]
+
   let error_handler err =
     Lwt.return
     @@
@@ -192,6 +197,7 @@ struct
     let default_host = Key_gen.default_host () in
     [
       Dream.get "/" (homepage stack default_host);
+      Dream.get "/robots.txt" serve_robots_txt;
       Dream.get "/gemini" redirect_about;
       Dream.get "/gemini/**" (gemini_proxy stack);
       Dream.get "/static/**" (serve_static static);
