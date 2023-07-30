@@ -3,7 +3,7 @@ body {
 }
 
 main {
-    width: 60%;
+    width: 80ch;
     margin: 0 auto;
     background-color: #FFF;
     padding: 1.25rem 1.25rem 0 1.25rem;
@@ -109,7 +109,8 @@ p>a>img {
     margin-top: 1rem;
 }
 
-img, video {
+img,
+video {
     max-width: 500px;
     border: 3px solid #888;
     display: block;
