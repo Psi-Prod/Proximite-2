@@ -1,14 +1,18 @@
-type ctx = {
-  title : string option (* The first H1 heading, if found *);
-  body : Html_types.flow5 elts;
-  items : Html_types.li elts; (* List items *)
-  paragraph : Html_types.p_content_fun elts;
-      (* We merge consecutive text line into a paragraph *)
-  quote : Html_types.blockquote_content_fun elts;
-      (* Also for quotation line into a blockquote *)
-}
+include struct
+  open Html_types
 
-and 'a elts = 'a Tyxml_html.elt list
+  type ctx = {
+    title : string option (* The first H1 heading, if found *);
+    body : flow5 elts;
+    items : li elts; (* List items *)
+    paragraph : p_content_fun elts;
+        (* We merge consecutive text line into a paragraph *)
+    quote : blockquote_content_fun elts;
+        (* Also for quotation line into a blockquote *)
+  }
+
+  and 'a elts = 'a Tyxml_html.elt list
+end
 
 module Ctx = struct
   let empty =
@@ -176,13 +180,14 @@ let handle_link url name =
   in
   if is_image url then
     let attr = [ a_href url; a_target "_blank" ] in
+    let img_attr = [ Unsafe.string_attrib "loading" "lazy" ] in
     match name with
-    | None -> `Inline (a ~a:attr [ img ~src:url ~alt:"" () ])
+    | None -> `Inline (a ~a:attr [ img ~a:img_attr ~src:url ~alt:"" () ])
     | Some name ->
         `Figure
           (figure
              ~figcaption:(`Bottom (figcaption [ txt name ]))
-             [ a ~a:attr [ img ~src:url ~alt:name () ] ])
+             [ a ~a:attr [ img ~a:img_attr ~src:url ~alt:name () ] ])
   else if is_audio url then handle_dynamic `Audio
   else if is_video url then handle_dynamic `Video
   else
@@ -190,6 +195,24 @@ let handle_link url name =
       (a
          ~a:[ a_href url ]
          [ txt (Option.value name ~default:url |> Uri.pct_decode) ])
+
+let handle_preformat { Razzia.Gemtext.alt; text } =
+  let open Tyxml_html in
+  let pre = pre [ txt text ] in
+  match alt with
+  | None -> pre
+  | Some lang -> (
+      let figure =
+        figure
+          ~figcaption:(`Top (figcaption [ txt lang ]))
+          ~a:[ a_class [ "preformat" ] ]
+      in
+      match
+        Hilite.Syntax.src_code_to_html ~lang ~src:(text ^ "\n")
+        (* An extra newline is needed to detect pattern on last line. *)
+      with
+      | (exception Failure _) | Error (`Msg _) -> figure [ pre ]
+      | Ok highlight -> figure [ Tyxml_html.Unsafe.data highlight ])
 
 let hof ~url:current gemtext =
   let ctx =
@@ -207,14 +230,7 @@ let hof ~url:current gemtext =
                match handle_link proxied_url name with
                | `Inline l -> Ctx.add_to_paragraph acc l
                | `Figure i -> Ctx.add acc i)
-           | Preformat { alt; text } ->
-               let pre = pre [ txt text ] in
-               Option.fold alt ~none:pre ~some:(fun caption ->
-                   figure
-                     ~figcaption:(`Top (figcaption [ txt caption ]))
-                     ~a:[ a_class [ "preformat" ] ]
-                     [ pre ])
-               |> Ctx.add acc
+           | Preformat pf -> handle_preformat pf |> Ctx.add acc
            | Heading (level, heading) ->
                let h = match level with `H1 -> h1 | `H2 -> h2 | `H3 -> h3 in
                h ~a:[ a_id (id_of_string heading) ] [ txt heading ]

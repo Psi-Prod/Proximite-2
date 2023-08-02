@@ -159,7 +159,6 @@ let mk_error ~gemini_url ~response (err : err) =
               (Status.status_to_string s)),
           "" )
   in
-
   mk_page ~gemini_url ~response ~page_title:(fmt_page_title title)
     ~body:[ h1 [ txt title ]; p [ txt label ] ]
     ()
@@ -177,11 +176,10 @@ let mk_input ~gemini_url ~response ~sensitive ~prompt () =
                   a_input_type (if sensitive then `Password else `Text);
                   a_name "input";
                   a_maxlength 1024;
-                  a_id "input-field";
                 ]
               ();
             br ();
-            input ~a:[ a_input_type `Submit; a_id "input-submit" ] ();
+            input ~a:[ a_input_type `Submit ] ();
           ];
       ]
     ()

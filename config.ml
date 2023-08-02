@@ -42,6 +42,7 @@ let main =
         package "razzia-mirage"
           ~pin:"git+https://github.com/Psi-Prod/Razzia.git#dev";
         package "tyxml";
+        package "hilite";
       ]
     "Unikernel.Main"
     (kv_ro @-> pclock @-> stackv4v6 @-> time @-> dns_client @-> job)

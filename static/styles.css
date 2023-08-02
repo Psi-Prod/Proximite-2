@@ -51,13 +51,13 @@ form>h1 {
     margin-top: 0;
 }
 
-#input-field {
+input[type=text] {
     border: 2px dashed #AAA;
     margin: 10px;
     width: 60%;
 }
 
-#input-submit {
+input[type=submit] {
     border: 2px outset black;
 }
 
@@ -150,4 +150,58 @@ details:not([open]) summary a {
     header {
         flex-direction: column;
     }
+
+    img,
+    video {
+        max-width: 90%;
+    }
+}
+
+span[class*=keyword] {
+    color: #00007f;
+    font-weight: bold;
+}
+
+span[class*=constant] {
+    color: #00007f;
+}
+
+span[class*=keyword-operator] {
+    color: initial;
+}
+
+span[class*=constant-language-capital-identifier] {
+    color: #301010;
+}
+
+span[class*=function-binding],
+span[class*=variable] {
+    color: inherit;
+}
+
+span[class*=support],
+span[class*=ocaml-constant-language-polymorphic-variant] {
+    color: #007f7f;
+}
+
+span[class*=storage-type] {
+    color: #911;
+}
+
+span[class*=comment] {
+    font-style: italic;
+}
+
+span[class*=literal] {
+    color: inherit;
+}
+
+span[class*=constant-character-escape],
+span[class*=constant-character-printf],
+span[class*=string] {
+    color: #FF8000;
+}
+
+span[class*=numeric] {
+    color: #008000;
 }
