@@ -95,6 +95,10 @@ module Ctx = struct
     | _, _ -> assert false
 end
 
+let without_trailing_slash p =
+  if String.ends_with ~suffix:"/" p then String.sub p 0 (String.length p - 1)
+  else p
+
 let proxy_url ~current url =
   match Uri.scheme url with
   | Some "gemini" | None -> (
@@ -115,7 +119,9 @@ let proxy_url ~current url =
       | Some host ->
           if host = Key_gen.default_host () then proxied
           else
-            let new_path = "/gemini/" ^ host ^ Uri.path url in
+            let new_path =
+              "/gemini/" ^ host ^ without_trailing_slash (Uri.path url)
+            in
             Uri.with_path proxied new_path
       | None ->
           let current_host = Option.get (Uri.host current) in
@@ -162,7 +168,7 @@ let is_audio = is_in_mimes [ ".mp3"; ".ogg" ]
 let is_video = is_in_mimes [ ".mp4"; ".webm" ]
 
 (* Inline image and audio. *)
-let handle_link url name =
+let handle_link ~base_url url name =
   let open Tyxml_html in
   let handle_dynamic typ =
     let elt_fun, label =
@@ -194,7 +200,7 @@ let handle_link url name =
     `Inline
       (a
          ~a:[ a_href url ]
-         [ txt (Option.value name ~default:url |> Uri.pct_decode) ])
+         [ txt (Option.value name ~default:base_url |> Uri.pct_decode) ])
 
 let handle_preformat { Razzia.Gemtext.alt; text } =
   let open Tyxml_html in
@@ -227,7 +233,7 @@ let hof ~url:current gemtext =
                let proxied_url =
                  proxy_url ~current (Uri.of_string url) |> Uri.to_string
                in
-               match handle_link proxied_url name with
+               match handle_link ~base_url:url proxied_url name with
                | `Inline l -> Ctx.add_to_paragraph acc l
                | `Figure i -> Ctx.add acc i)
            | Preformat pf -> handle_preformat pf |> Ctx.add acc
