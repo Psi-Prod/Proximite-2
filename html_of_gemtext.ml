@@ -164,7 +164,7 @@ let is_image =
       ".webp";
     ]
 
-let is_audio = is_in_mimes [ ".mp3"; ".ogg" ]
+let is_audio = is_in_mimes [ ".mp3"; ".ogg"; ".wav" ]
 let is_video = is_in_mimes [ ".mp4"; ".webm" ]
 
 (* Inline image and audio. *)
