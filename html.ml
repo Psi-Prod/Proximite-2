@@ -6,7 +6,21 @@ let fmt_page_title title =
 let mk_head ~page_title () =
   head
     (title (txt page_title))
-    [ link ~rel:[ `Stylesheet ] ~href:"/static/styles.css" () ]
+    [
+      link ~rel:[ `Stylesheet ] ~href:"/static/styles.css" ();
+      link ~rel:[ `Stylesheet ] ~href:"/static/dark.css"
+        ~a:
+          [
+            a_media
+              [ `Raw_mediadesc "only screen and (prefers-color-scheme: dark)" ];
+          ]
+        ();
+      link
+        ~rel:[ `Alternate; `Stylesheet ]
+        ~href:"/static/dark.css"
+        ~a:[ a_title "Secret mode" ]
+        ();
+    ]
 
 let without_trailing_slash url =
   match Uri.path url with
