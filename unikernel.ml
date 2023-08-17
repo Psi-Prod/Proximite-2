@@ -8,15 +8,17 @@ struct
   module Dream = Dream__mirage.Mirage.Make (Pclock) (Time) (Stack)
   module Razzia_io = Razzia_mirage.Make (Pclock) (Stack) (Dns)
   open Lwt.Infix
+  open Lwt.Syntax
 
   let i'm_a_teapot = Dream.int_to_status 418
   let string_of_html = Format.asprintf "%a" (Tyxml_html.pp ())
   let default_headers = [ ("Content-Type", "text/html; charset=utf-8") ]
 
-  let http_of_gemini gemini_url resp =
+  let http_of_gemini ~styles gemini_url resp =
     match resp with
     | Razzia.Input { prompt; sensitive } ->
-        Html.mk_input ~gemini_url ~response:(Some resp) ~sensitive ~prompt ()
+        Html.mk_input ~styles ~gemini_url ~response:(Some resp) ~sensitive
+          ~prompt ()
         |> string_of_html
         |> Dream.response ~headers:default_headers
     | Success { body; encoding; mime; _ } ->
@@ -29,8 +31,8 @@ struct
                 let page_title, body =
                   Html_of_gemtext.hof ~url:gemini_url body
                 in
-                Html.mk_page ~gemini_url ~response:(Some resp) ~page_title ~body
-                  ()
+                Html.mk_page ~styles ~gemini_url ~response:(Some resp)
+                  ~page_title ~body ()
                 |> string_of_html )
           | MimeType mime ->
               ( [
@@ -77,7 +79,7 @@ struct
           | `SlowDown -> `Too_Many_Requests
         in
         `TempFailure info
-        |> Html.mk_error ~gemini_url ~response:(Some resp)
+        |> Html.mk_error ~styles ~gemini_url ~response:(Some resp)
         |> string_of_html
         |> Dream.response ~status ~headers:default_headers
     | PermFailure (status, info) ->
@@ -90,16 +92,16 @@ struct
           | `BadRequest -> `Bad_Request
         in
         `PermFailure info
-        |> Html.mk_error ~gemini_url ~response:(Some resp)
+        |> Html.mk_error ~styles ~gemini_url ~response:(Some resp)
         |> string_of_html
         |> Dream.response ~status ~headers:default_headers
     | ClientCertReq (_, info) ->
         `ClientCertReq info
-        |> Html.mk_error ~gemini_url ~response:(Some resp)
+        |> Html.mk_error ~styles ~gemini_url ~response:(Some resp)
         |> string_of_html
         |> Dream.response ~status:i'm_a_teapot
 
-  let proxy stack url =
+  let proxy ~styles stack url =
     let url =
       if Uri.path url = String.empty then Uri.with_path url "/" else url
     in
@@ -108,7 +110,7 @@ struct
         [
           f ();
           ( Time.sleep_ns (Duration.of_sec 5) >>= fun () ->
-            Html.mk_error ~gemini_url:url ~response:None `Timeout
+            Html.mk_error ~styles ~gemini_url:url ~response:None `Timeout
             |> string_of_html
             |> Dream.respond ~headers:default_headers );
         ]
@@ -117,15 +119,15 @@ struct
     | Ok request ->
         with_timeout (fun () ->
             Razzia_io.get stack request >|= function
-            | Ok resp -> http_of_gemini url resp
+            | Ok resp -> http_of_gemini ~styles url resp
             | Error err ->
                 `Response err
-                |> Html.mk_error ~gemini_url:url ~response:None
+                |> Html.mk_error ~styles ~gemini_url:url ~response:None
                 |> string_of_html
                 |> Dream.response ~headers:default_headers)
     | Error err ->
         `Request err
-        |> Html.mk_error ~gemini_url:url ~response:None
+        |> Html.mk_error ~styles ~gemini_url:url ~response:None
         |> string_of_html
         |> Dream.respond ~headers:default_headers
 
@@ -144,18 +146,18 @@ struct
       ?port:(get_port req) ()
     |> proxy stack
 
-  let default_proxy stack host =
+  let default_proxy ~styles stack host =
     Dream.static String.empty ~loader:(fun _ path req ->
         Uri.make ~scheme:"gemini" ~host ~path ~query:(get_query req)
           ?port:(get_port req) ()
-        |> proxy stack)
+        |> proxy ~styles stack)
 
-  let gemini_proxy stack =
+  let gemini_proxy ~styles stack =
     Dream.static String.empty ~loader:(fun _ path req ->
         let[@warning "-8"] (host :: path) = Mirage_kv.Key.(segments (v path)) in
         Uri.make ~scheme:"gemini" ~host ~path:(String.concat "/" path)
           ~query:(get_query req) ?port:(get_port req) ()
-        |> proxy stack)
+        |> proxy ~styles stack)
 
   let serve_static fs =
     Dream.static String.empty ~loader:(fun _ path _ ->
@@ -176,13 +178,13 @@ struct
       [ "User-agent: *"; "Disallow: /gemini/"; "Crawl-delay: 5" ]
     |> Dream.respond ~headers:[ ("Content-type", "text/plain") ]
 
-  let error_handler err =
+  let err_handler ~styles err =
     Lwt.return
     @@
     match err with
     | { Dream.condition = `Response resp; _ } ->
         `HTTP (Dream.status resp)
-        |> Html.mk_error
+        |> Html.mk_error ~styles
              ~gemini_url:
                (Uri.make ~scheme:"gemini" ~host:(Key_gen.default_host ())
                   ~path:"/" ())
@@ -194,15 +196,20 @@ struct
 
   (* TODO: Improve <br /> adding algorithm *)
   let start static _ stack _ _ =
+    let* styles =
+      Static.get static (Mirage_kv.Key.v "styles.css")
+      >|= Result.value ~default:""
+    in
     let default_host = Key_gen.default_host () in
     [
-      Dream.get "/" (homepage stack default_host);
+      Dream.get "/" (homepage ~styles stack default_host);
       Dream.get "/robots.txt" serve_robots_txt;
       Dream.get "/gemini" redirect_about;
-      Dream.get "/gemini/**" (gemini_proxy stack);
+      Dream.get "/gemini/**" (gemini_proxy ~styles stack);
       Dream.get "/static/**" (serve_static static);
-      Dream.get "/**" (default_proxy stack default_host);
+      Dream.get "/**" (default_proxy ~styles stack default_host);
     ]
     |> Dream.router |> Dream.logger
-    |> Dream.https ~error_handler ~port:(Key_gen.port ()) (Stack.tcp stack)
+    |> Dream.https ~error_handler:(err_handler ~styles) ~port:(Key_gen.port ())
+         (Stack.tcp stack)
 end
