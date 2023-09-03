@@ -3,24 +3,8 @@ open Tyxml_html
 let fmt_page_title title =
   Printf.sprintf "%s ‐ %s" title (Key_gen.service_name ())
 
-let mk_head ~page_title () =
-  head
-    (title (txt page_title))
-    [
-      link ~rel:[ `Stylesheet ] ~href:"/static/styles.css" ();
-      link ~rel:[ `Stylesheet ] ~href:"/static/dark.css"
-        ~a:
-          [
-            a_media
-              [ `Raw_mediadesc "only screen and (prefers-color-scheme: dark)" ];
-          ]
-        ();
-      link
-        ~rel:[ `Alternate; `Stylesheet ]
-        ~href:"/static/dark.css"
-        ~a:[ a_title "Secret mode" ]
-        ();
-    ]
+let mk_head ~styles ~page_title () =
+  head (title (txt page_title)) [ style [ txt styles ] ]
 
 let without_trailing_slash url =
   match Uri.path url with
@@ -115,13 +99,14 @@ let mk_footer ~url ~response () =
           img;
         ]
 
-let mk_page ~gemini_url:url ~response ~page_title ~body:b () =
+let mk_page ~styles ~gemini_url:url ~response ~page_title ~body:b () =
   let footer =
     match response with
     | Some (Razzia.Input _) -> [ mk_footer ~url ~response () ]
     | Some _ | None -> [ hr (); mk_footer ~url ~response () ]
   in
-  html (mk_head ~page_title ())
+  html
+    (mk_head ~styles ~page_title ())
     (body [ main ([ mk_header ~url (); article b ] @ footer) ])
 
 type err =
