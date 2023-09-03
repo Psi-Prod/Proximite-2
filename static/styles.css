@@ -79,9 +79,6 @@ figure {
 
 figure.preformat {
     display: block;
-}
-
-figure.preformat figcaption {
     text-align: left;
 }
 
