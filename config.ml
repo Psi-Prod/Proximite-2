@@ -24,6 +24,10 @@ let random_banner_url =
   in
   Key.(create "random-banner-url" Arg.(required string doc))
 
+let nameservers =
+  let doc = Key.Arg.info ~doc:"Nameserver" [ "nameserver" ] in
+  Key.(create "nameserver" Arg.(opt_all string doc))
+
 let main =
   main
     ~keys:
@@ -55,5 +59,5 @@ let () =
   register "proximite"
     [
       main $ static $ default_posix_clock $ stack $ default_time
-      $ generic_dns_client stack;
+      $ generic_dns_client ~nameservers stack;
     ]
