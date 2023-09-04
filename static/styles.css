@@ -246,7 +246,6 @@ span[class*=numeric] {
         background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 24px;
         animation: rainbow 8s ease infinite;
     }
 
