@@ -66,7 +66,8 @@ let mk_header ~url () =
   let query =
     match Uri.verbatim_query url with
     | None -> []
-    | Some q -> [ span ~a:[ a_id "query" ] [ txt ("?" ^ Uri.pct_decode q) ] ]
+    | Some q ->
+        [ span ~a:[ a_class [ "query" ] ] [ txt ("?" ^ Uri.pct_decode q) ] ]
   in
   header [ nav (scheme @ host @ port @ path @ query) ]
 
@@ -100,14 +101,9 @@ let mk_footer ~url ~response () =
         ]
 
 let mk_page ~styles ~gemini_url:url ~response ~page_title ~body:b () =
-  let footer =
-    match response with
-    | Some (Razzia.Input _) -> [ mk_footer ~url ~response () ]
-    | Some _ | None -> [ hr (); mk_footer ~url ~response () ]
-  in
   html
     (mk_head ~styles ~page_title ())
-    (body [ main ([ mk_header ~url (); article b ] @ footer) ])
+    (body [ mk_header ~url (); main b; mk_footer ~url ~response () ])
 
 type err =
   [ `TempFailure of string

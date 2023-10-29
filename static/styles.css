@@ -1,12 +1,12 @@
-body {
-    margin: 0;
+html {
     background-image: url('/static/tile.jpg');
 }
 
-main {
+body {
+    margin: 0;
     width: 80ch;
     margin: 0 auto;
-    background-color: #FFF;
+    background-color: white;
     padding: 1.25rem 1.25rem 0 1.25rem;
     border-style: outset;
 }
@@ -15,7 +15,6 @@ header {
     border-style: outset;
     vertical-align: middle;
     font-family: Courier, monospace;
-    margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: stretch;
@@ -28,17 +27,13 @@ nav {
     overflow: hidden;
 }
 
-nav>#address {
-    vertical-align: sub;
-    height: 100%;
+.query {
+    color: #aaa;
 }
 
-#query {
-    color: #AAA;
-}
-
-article {
-    margin-bottom: 1rem;
+main {
+    margin: 1rem 0;
+    border-bottom : 2px groove #808080;
 }
 
 form {
@@ -46,6 +41,7 @@ form {
     padding: 3rem;
     width: auto;
     text-align: center;
+    margin-bottom: 1rem;
 }
 
 form>h1 {
@@ -119,10 +115,6 @@ audio {
     border: 3px solid #888;
 }
 
-hr {
-    border-color: #B2B2B2;
-}
-
 footer>details>table {
     padding-left: 1rem;
 }
@@ -137,11 +129,11 @@ details:not([open]) summary a {
 }
 
 @media screen and (max-width: 1000px) {
-    body {
+    html {
         margin-top: 5%;
     }
 
-    main {
+    body {
         width: 85%;
     }
 
@@ -219,11 +211,11 @@ span[class*=numeric] {
         }
     }
 
-    body {
+    html {
         background-image: url('/static/tile_dark.gif');
     }
 
-    main {
+    body {
         background-color: #000;
         color: #fff;
         border-color: #aaa;
