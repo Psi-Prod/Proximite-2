@@ -4,7 +4,7 @@ let fmt_page_title title =
   Printf.sprintf "%s ‐ %s" title (Key_gen.service_name ())
 
 let mk_head ~styles ~page_title () =
-  head (title (txt page_title)) [ style [ txt styles ] ]
+  head (title (txt page_title)) [ style [ Unsafe.data styles ] ]
 
 let without_trailing_slash url =
   match Uri.path url with
