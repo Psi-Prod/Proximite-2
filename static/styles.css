@@ -145,6 +145,10 @@ details:not([open]) summary a {
     video {
         max-width: 90%;
     }
+
+    pre {
+        font-size: 90%;
+    }
 }
 
 span[class*=keyword] {
